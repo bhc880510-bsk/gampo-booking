@@ -1005,7 +1005,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # [수정] st.title 대신 markdown을 사용하여 제목을 중앙 정렬하고 크기를 조정
-st.markdown('<div class="main-title-container"><h1 class="main-title">⛳ 골프존 감포CC 모바일 예약</h1></div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title-container"><h1 class="main-title">⛳감포CC 모바일 예약</h1></div>', unsafe_allow_html=True)
 
 # --- 1. 로그인 정보 ---
 st.markdown('<p class="section-header">🔑 로그인 정보</p>', unsafe_allow_html=True)
@@ -1152,4 +1152,5 @@ if st.session_state.is_running:
         st.rerun()  # Worker 종료 후 UI 상태 업데이트
     else:
         time.sleep(0.1)
+
         st.rerun()  # 로그 업데이트를 위해 0.1초마다 재실행
