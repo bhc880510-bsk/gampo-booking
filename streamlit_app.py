@@ -744,6 +744,8 @@ def start_pre_process(message_queue, stop_event, inputs):
             log_message(f"❌ 로그인 실패: {login_result['message']}", message_queue)
             return
         log_message("✅ 로그인 성공.", message_queue)
+        log_message("⏳ 로그인 성공. 세션 활성화 전 2초간 대기 (에러 방지)...", message_queue)
+        time.sleep(2.0)
         if stop_event.is_set(): return
 
         # 2. Server Time Check & Target Time Calculation (Initial Offset)
@@ -1152,6 +1154,4 @@ if st.session_state.is_running:
         st.rerun()  # Worker 종료 후 UI 상태 업데이트
     else:
         time.sleep(0.1)
-
         st.rerun()  # 로그 업데이트를 위해 0.1초마다 재실행
-
