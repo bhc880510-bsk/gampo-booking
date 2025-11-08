@@ -375,79 +375,78 @@ class APIBookingCore:
             self.log_message("✅ 세션 유지 스레드: 예약 정시 도달. 종료합니다.")
 
     # 'getList' 호출 (티타임 목록 HTML 획득)
-        # 'getList' 호출 (티타임 목록 HTML 획득)
-        def get_all_available_times(self, date):
-            """
-            [수정] 사용자 관찰에 따라 pageNo 파라미터를 추가하고 1~4페이지를 모두 조회하여 HTML을 병합합니다.
-            """
-            self.log_message(f"⏳ {date} 골프존 감포CC 예약 가능 시간대 조회 중 (HTML 요청 - getList, 최대 4페이지)...")
+    def get_all_available_times(self, date):
+        """
+        [수정] 사용자 관찰에 따라 pageNo 파라미터를 추가하고 1~4페이지를 모두 조회하여 HTML을 병합합니다.
+        """
+        self.log_message(f"⏳ {date} 골프존 감포CC 예약 가능 시간대 조회 중 (HTML 요청 - getList, 최대 4페이지)...")
 
-            url = self.TIME_LIST_URL
-            referer_url = f"{self.API_DOMAIN}/reserve/main/teetimeList?golfclubSeq={self.GAMPO_SEQ}"
-            headers = self.get_base_headers(referer_url)
-            headers["Accept"] = "text/html, */*; q=0.01"
+        url = self.TIME_LIST_URL
+        referer_url = f"{self.API_DOMAIN}/reserve/main/teetimeList?golfclubSeq={self.GAMPO_SEQ}"
+        headers = self.get_base_headers(referer_url)
+        headers["Accept"] = "text/html, */*; q=0.01"
 
-            all_times_html_parts = []
-            max_pages = 4  # 사용자 관찰에 따라 1부터 4페이지까지 시도
+        all_times_html_parts = []
+        max_pages = 4  # 사용자 관찰에 따라 1부터 4페이지까지 시도
 
-            for page_no in range(1, max_pages + 1):
+        for page_no in range(1, max_pages + 1):
+            if self.stop_event.is_set(): return None
+
+            payload = {
+                "golfclubSeq": self.GAMPO_SEQ,
+                "selectDate": date,
+                "selectTimeSection": "",
+                "selectHoleCnt": "18",
+                "selectPersonCnt": "4",
+                "selectCaddieType": "",
+                "selectReserveOrderType": "",
+                "searchFlag": "Y",
+                "searchTime": "",
+                "pageNo": str(page_no)  # <--- [핵심 수정] pageNo 추가
+            }
+
+            max_attempts = 3
+            timeout_seconds = 3.0
+
+            for attempt in range(1, max_attempts + 1):
                 if self.stop_event.is_set(): return None
+                try:
+                    self.log_message(f"🔄 티 타임 조회 시도 ({page_no}페이지, 시도 {attempt}/{max_attempts})...")
+                    res = self.session.post(url, headers=headers, data=payload, timeout=timeout_seconds,
+                                            verify=False)
+                    res.raise_for_status()
 
-                payload = {
-                    "golfclubSeq": self.GAMPO_SEQ,
-                    "selectDate": date,
-                    "selectTimeSection": "",
-                    "selectHoleCnt": "18",
-                    "selectPersonCnt": "4",
-                    "selectCaddieType": "",
-                    "selectReserveOrderType": "",
-                    "searchFlag": "Y",
-                    "searchTime": "",
-                    "pageNo": str(page_no)  # <--- [핵심 수정] pageNo 추가
-                }
-
-                max_attempts = 3
-                timeout_seconds = 3.0
-
-                for attempt in range(1, max_attempts + 1):
-                    if self.stop_event.is_set(): return None
-                    try:
-                        self.log_message(f"🔄 티 타임 조회 시도 ({page_no}페이지, 시도 {attempt}/{max_attempts})...")
-                        res = self.session.post(url, headers=headers, data=payload, timeout=timeout_seconds,
-                                                verify=False)
-                        res.raise_for_status()
-
-                        if 'text/html' in res.headers.get('content-type', ''):
-                            if len(res.text.strip()) < 100:
-                                self.log_message(f"✅ 'getList' {page_no}페이지 응답 내용이 짧아 (목록 없음) 조회 종료.")
-                            else:
-                                self.log_message(f"✅ 'getList' {page_no}페이지 HTML 응답 수신 성공.")
-                                all_times_html_parts.append(res.text)
-                            break  # 성공했으니 다음 페이지로 이동
+                    if 'text/html' in res.headers.get('content-type', ''):
+                        if len(res.text.strip()) < 100:
+                            self.log_message(f"✅ 'getList' {page_no}페이지 응답 내용이 짧아 (목록 없음) 조회 종료.")
                         else:
-                            self.log_message(f"❌ 'getList' {page_no}페이지 응답 유형 오류: {res.headers.get('content-type')}")
-                            continue
+                            self.log_message(f"✅ 'getList' {page_no}페이지 HTML 응답 수신 성공.")
+                            all_times_html_parts.append(res.text)
+                        break  # 성공했으니 다음 페이지로 이동
+                    else:
+                        self.log_message(f"❌ 'getList' {page_no}페이지 응답 유형 오류: {res.headers.get('content-type')}")
+                        continue
 
-                    except (requests.Timeout, requests.RequestException) as e:
-                        error_msg = f"❌ 티 타임 조회 통신 오류 ({type(e).__name__}): {e}"
-                        if attempt < max_attempts:
-                            self.log_message(f"{error_msg}, ... 즉시 재시도...")
-                            continue
-                        else:
-                            self.log_message(f"❌ 최종 ({max_attempts}회) 시도 실패: {error_msg}")
-                            return None
-                    except Exception as e:
-                        self.log_message(f"❌ 'getList' {page_no}페이지 예외 오류: {e}")
+                except (requests.Timeout, requests.RequestException) as e:
+                    error_msg = f"❌ 티 타임 조회 통신 오류 ({type(e).__name__}): {e}"
+                    if attempt < max_attempts:
+                        self.log_message(f"{error_msg}, ... 즉시 재시도...")
+                        continue
+                    else:
+                        self.log_message(f"❌ 최종 ({max_attempts}회) 시도 실패: {error_msg}")
                         return None
+                except Exception as e:
+                    self.log_message(f"❌ 'getList' {page_no}페이지 예외 오류: {e}")
+                    return None
 
-            if not all_times_html_parts:
-                self.log_message("❌ 모든 페이지에서 티 타임 목록 조회 실패.")
-                return None
+        if not all_times_html_parts:
+            self.log_message("❌ 모든 페이지에서 티 타임 목록 조회 실패.")
+            return None
 
-            # 수집된 모든 HTML 조각을 하나로 합쳐서 반환
-            combined_html = "".join(all_times_html_parts)
-            self.log_message(f"✅ 총 {len(all_times_html_parts)}개 페이지 HTML 조합 완료. {len(combined_html)} 길이.")
-            return combined_html
+        # 수집된 모든 HTML 조각을 하나로 합쳐서 반환
+        combined_html = "".join(all_times_html_parts)
+        self.log_message(f"✅ 총 {len(all_times_html_parts)}개 페이지 HTML 조합 완료. {len(combined_html)} 길이.")
+        return combined_html
 
     # HTML 파싱 및 코스 필터링/정렬 로직
     def filter_and_sort_times(self, all_times_html, start_time_str, end_time_str, target_course_names, is_reverse):
