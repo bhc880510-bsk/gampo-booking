@@ -1,4 +1,4 @@
-# 골프존 감포CC Streamlit 앱
+# 골프존 감포CC Streamlit 앱 (UI: 뉴서울CC 스타일 적용)
 import warnings
 
 # RuntimeWarning: coroutine '...' was never awaited 경고를 무시하도록 설정
@@ -396,8 +396,10 @@ class APIBookingCore:
                 "golfclubSeq": self.GAMPO_SEQ,
                 "selectDate": date,
                 "selectTimeSection": "",
-                "selectHoleCnt": "18",
-                "selectPersonCnt": "4",
+                "selectHoleCnt": "",
+                "selectPersonCnt": "",
+#                "selectHoleCnt": "18",
+#                "selectPersonCnt": "4",
                 "selectCaddieType": "",
                 "selectReserveOrderType": "",
                 "searchFlag": "Y",
